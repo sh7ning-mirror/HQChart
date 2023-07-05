@@ -24,6 +24,7 @@ function JSChartResource()
     this.DownBarColor = "rgb(25,158,0)";
     this.UnchagneBarColor = "rgb(0,0,0)";
     this.MinKLineBarWidth=4;                        //最小的柱子宽度 比这个还小就画直线 
+    this.MinColorKBarWidth=4;
 
     this.Minute = {};
     this.Minute.VolBarColor = null;
@@ -34,8 +35,10 @@ function JSChartResource()
     this.DefaultTextColor = "rgb(43,54,69)";
     this.DefaultTextFont = '14px 微软雅黑';
     this.IndexTitleBGColor='rgb(217,219,220)';     //指标名字背景色
+    this.IndexTitleBorderColor='rgb(180,180,180)';
     this.IndexTitleColor="rgb(43,54,69)";
     this.DynamicTitleFont = '12px 微软雅黑';        //指标动态标题字体
+    this.OverlayIndexTitleBGColor='rgba(255,255,255,0.7)';
 
     this.UpTextColor = "rgb(238,21,21)";
     this.DownTextColor = "rgb(25,158,0)";
@@ -68,7 +71,14 @@ function JSChartResource()
         XBottomOffset: 0 ,  //X轴文字向下偏移
         YTopOffset:2,    //Y轴顶部文字向下偏移
         YTextPadding:[2,2]
-    };   
+    };  
+    
+    this.FrameLogo=
+    {
+        TextColor:'rgb(178,34,34)',
+        Font:"bold 16px 微软雅黑",
+        Text:"*仅学习使用*"     //请求不要修改声明, 任何修改声明产生的任何法律责任由修改者自行独立承担，与HQChart插件作者无关。
+    };
 
     this.FrameLatestPrice = 
     {
@@ -76,12 +86,22 @@ function JSChartResource()
         UpBarColor: "rgb(238,21,21)",    //上涨
         DownBarColor: "rgb(25,158,0)",   //下跌
         UnchagneBarColor: "rgb(0,0,0)",   //平盘
-        BGAlpha: 0.6
+        BGAlpha: 0.6,
+
+        OverlayTextColor:"rgb(255,255,255)",       //叠加股票的文字颜色
     };
 
     this.FrameMargin = 4;     //左右一共的边距
     this.FrameLeftMargin = 2;
     this.FrameRightMargin=2;
+
+    //叠加指标框架
+    this.OverlayFrame=
+    {
+        BolderPen:'rgb(190,190,190)',                    //指标边框线
+        TitleColor:'rgb(105,105,105)',                   //指标名字颜色
+        TitleFont:'11px arial',                          //指标名字字体
+    };
 
     this.CorssCursorBGColor = "rgb(43,54,69)";            //十字光标背景
     this.CorssCursorTextColor = "rgb(255,255,255)";
@@ -301,9 +321,65 @@ function JSChartResource()
         Tooltip:
         { 
             BGColor:'rgba(236,240,245, 0.8)', TextColor:"rgb(130,140,151)",
-            Border:{ Top:5, Left:20, Bottom:5, Center: 5},
+            Border:{ Top:5, Left:20, Right:20, Bottom:5, ItemSpace: 5},
             Font:"14px 微软雅黑",
-            LineHeight:16   //单行高度
+        }
+    }
+
+    //报价列表
+    this.Report=
+    {
+        BorderColor:'rgb(192,192,192)',    //边框线
+        SelectedColor:"rgb(180,240,240)",  //选中行
+        Header:
+        {
+            Color:"rgb(60,60,60)",      //表头文字颜色
+            SortColor:"rgb(255,0,0)",   //排序箭头颜色
+            Mergin:{ Left:5, Right:5, Top:4, Bottom:2},    //表头四周间距
+            Font:{ Size:15, Name:"微软雅黑" }   //表头字体
+        },
+
+        Item:
+        {
+            Mergin:{ Top:2, Bottom:0,Left:5, Right:5 }, //单元格四周间距
+            Font:{ Size:15, Name:"微软雅黑"},
+            BarMergin:{ Top:2, Left:3, Right:3, Bottom:2 },//单元格字体
+            NameFont:{ Size:14, Name:"微软雅黑" },
+            SymbolFont:{ Size:12, Name:"微软雅黑" }
+        },
+
+        //固定行
+        FixedItem:
+        {
+            Font:{ Size:15, Name:"微软雅黑"},
+        },
+
+        LimitBorder:
+        {
+            Color:"rgb(180,180,180)",
+            Mergin:{ Top:1, Bottom:1,Left:0, Right:0 },
+        },
+
+        FieldColor:
+        {
+            Index:"rgb(60,60,60)",  //序号
+            Symbol:"rgb(60,60,60)",
+            Name:"rgb(60,60,60)",
+            Vol:"rgb(90,90,90)",    //成交量
+            Amount:"rgb(90,90,90)", //成交金额
+            Text:"rgb(60,60,60)",   //默认文本
+        },
+
+        UpTextColor:"rgb(238,21,21)",      //上涨文字颜色
+        DownTextColor:"rgb(25,158,0)",     //下跌文字颜色
+        UnchagneTextColor:"rgb(90,90,90)",     //平盘文字颜色 
+        CloseLineColor:"rgb(30,144,255)",
+        PageInfo:
+        {
+            Font:{ Size:15, Name:"微软雅黑"},
+            TextColor:"rgb(0,0,0)",
+            BGColor:"rgba(180,180,180,0.5)",
+            Mergin:{ Left:5, Right:5, Top:4, Bottom:2 },
         }
     }
 
@@ -328,6 +404,8 @@ function JSChartResource()
         if (style.DefaultTextFont) this.DefaultTextFont = style.DefaultTextFont;
         if (style.DynamicTitleFont) this.DynamicTitleFont = style.DynamicTitleFont;
         if (style.IndexTitleBGColor) this.IndexTitleBGColor=style.IndexTitleBGColor;
+        if (style.OverlayIndexTitleBGColor) this.OverlayIndexTitleBGColor=style.OverlayIndexTitleBGColor;
+        if (style.IndexTitleBorderColor) this.IndexTitleBorderColor=style.IndexTitleBorderColor;
         if (style.IndexTitleColor) this.IndexTitleColor=style.IndexTitleColor;
         if (style.UpTextColor) this.UpTextColor = style.UpTextColor;
         if (style.DownTextColor) this.DownTextColor = style.DownTextColor;
@@ -353,6 +431,7 @@ function JSChartResource()
             if (style.FrameLatestPrice.DownBarColor) this.FrameLatestPrice.DownBarColor = style.FrameLatestPrice.DownBarColor;
             if (style.FrameLatestPrice.UnchagneBarColor) this.FrameLatestPrice.UnchagneBarColor = style.FrameLatestPrice.UnchagneBarColor;
             if (style.FrameLatestPrice.BGAlpha) this.FrameLatestPrice.BGAlpha = style.FrameLatestPrice.BGAlpha;
+            if (style.FrameLatestPrice.OverlayTextColor) this.FrameLatestPrice.OverlayTextColor = style.FrameLatestPrice.OverlayTextColor;
         }
 
         if (style.CorssCursorBGColor) this.CorssCursorBGColor = style.CorssCursorBGColor;
@@ -402,8 +481,8 @@ function JSChartResource()
             if (style.DRAWICON.Text)
             {
                 var item=style.DRAWICON.Text;
-                if (IFrameSplitOperator.IsPlusNumber(item.MaxSize)) this.DRAWICON.Text.MaxSize=item.MaxSize;
-                if (IFrameSplitOperator.IsPlusNumber(item.MinSize)) this.DRAWICON.Text.MinSize=item.MinSize;
+                if (this.IsPlusNumber(item.MaxSize)) this.DRAWICON.Text.MaxSize=item.MaxSize;
+                if (this.IsPlusNumber(item.MinSize)) this.DRAWICON.Text.MinSize=item.MinSize;
                 if (item.Zoom) this.DRAWICON.Text.Zoom=item.Zoom;
                 if (item.FontName) this.DRAWICON.Text.FontName=item.FontName;
             }
@@ -412,8 +491,8 @@ function JSChartResource()
         if (style.DRAWTEXT)
         {
             var item=style.DRAWTEXT;
-            if (IFrameSplitOperator.IsPlusNumber(item.MaxSize)) this.DRAWICON.MaxSize=item.MaxSize;
-            if (IFrameSplitOperator.IsPlusNumber(item.MinSize)) this.DRAWICON.MinSize=item.MinSize;
+            if (this.IsPlusNumber(item.MaxSize)) this.DRAWICON.MaxSize=item.MaxSize;
+            if (this.IsPlusNumber(item.MinSize)) this.DRAWICON.MinSize=item.MinSize;
             if (item.Zoom) this.DRAWICON.Zoom=item.Zoom;
             if (item.FontName) this.DRAWICON.FontName=item.FontName;
         }
@@ -421,10 +500,10 @@ function JSChartResource()
         if (style.DRAWNUMBER)
         {
             var item=style.DRAWNUMBER;
-            if (this.IsPlusNumber(item.MaxSize)) this.DRAWNUMBER.Text.MaxSize=item.MaxSize;
-            if (this.IsPlusNumber(item.MinSize)) this.DRAWNUMBER.Text.MinSize=item.MinSize;
-            if (item.Zoom) this.DRAWNUMBER.Text.Zoom=item.Zoom;
-            if (item.FontName) this.DRAWNUMBER.Text.FontName=item.FontName;
+            if (this.IsPlusNumber(item.MaxSize)) this.DRAWNUMBER.MaxSize=item.MaxSize;
+            if (this.IsPlusNumber(item.MinSize)) this.DRAWNUMBER.MinSize=item.MinSize;
+            if (item.Zoom) this.DRAWNUMBER.Zoom=item.Zoom;
+            if (item.FontName) this.DRAWNUMBER.FontName=item.FontName;
         }
 
         if (style.DRAWABOVE)
@@ -477,8 +556,9 @@ function JSChartResource()
                 var border=tooltip.Border;
                 if (this.IsNumber(border.Top)) this.DepthCorss.Tooltip.Border.Top=border.Top;
                 if (this.IsNumber(border.Left)) this.DepthCorss.Tooltip.Border.Left=border.Left;
+                if (this.IsNumber(border.Right)) this.DepthCorss.Tooltip.Border.Right=border.Right;
                 if (this.IsNumber(border.Bottom)) this.DepthCorss.Tooltip.Border.Bottom=border.Bottom;
-                if (this.IsNumber(border.Center)) this.DepthCorss.Tooltip.Border.Center=border.Center;
+                if (this.IsNumber(border.ItemSpace)) this.DepthCorss.Tooltip.Border.ItemSpace=border.ItemSpace;
             }
         }
 
@@ -492,6 +572,147 @@ function JSChartResource()
         {
             var item=style.POINTDOT;
             if (this.IsNumber(item.Radius)) this.POINTDOT.Radius=item.Radius;
+        }
+
+        if (style.Report)
+        {
+            var item=style.Report;
+            if (item.BorderColor) this.Report.BorderColor=item.BorderColor;
+            if (item.UpTextColor) this.Report.UpTextColor=item.UpTextColor;
+            if (item.DownTextColor) this.Report.DownTextColor=item.DownTextColor;
+            if (item.UnchagneTextColor) this.Report.UnchagneTextColor=item.UnchagneTextColor;
+            if (item.BorderColor) this.Report.SelectedColor=item.SelectedColor;
+            if (item.CloseLineColor) this.Report.CloseLineColor=item.CloseLineColor;
+            
+            if (item.Header)
+            {
+                var header=item.Header;
+                if (header.Color) this.Report.Header.Color=header.Color;
+                if (header.SortColor) this.Report.Header.SortColor=header.SortColor;
+                if (header.Mergin)
+                {
+                    var mergin=header.Mergin;
+                    if (this.IsNumber(mergin.Left)) this.Report.Header.Mergin.Left=mergin.Left;
+                    if (this.IsNumber(mergin.Right)) this.Report.Header.Mergin.Left=mergin.Right;
+                    if (this.IsNumber(mergin.Top)) this.Report.Header.Mergin.Top=mergin.Top;
+                    if (this.IsNumber(mergin.Bottom)) this.Report.Header.Mergin.Bottom=mergin.Bottom;
+                }
+                if (header.Font)
+                {
+                    var font=header.Font;
+                    if (font.Name) this.Report.Header.Font.Name=font.Name;
+                    if (this.IsNumber(font.Size)) this.Report.Header.Font.Size=font.Size;
+                }
+            }
+
+            if (item.Item)
+            {
+                var row=item.Item;
+                if (row.Mergin)
+                {
+                    var mergin=row.Mergin;
+                    if (this.IsNumber(mergin.Left)) this.Report.Item.Mergin.Left=mergin.Left;
+                    if (this.IsNumber(mergin.Right)) this.Report.Item.Mergin.Right=mergin.Right;
+                    if (this.IsNumber(mergin.Top)) this.Report.Item.Mergin.Top=mergin.Top;
+                    if (this.IsNumber(mergin.Bottom)) this.Report.Item.Mergin.Bottom=mergin.Bottom;
+                }
+
+                if (row.Font)
+                {
+                    var font=row.Font;
+                    if (font.Name) this.Report.Item.Font.Name=font.Name;
+                    if (this.IsNumber(font.Size)) this.Report.Item.Font.Size=font.Size;
+                }
+
+                if (row.BarMergin)
+                {
+                    var mergin=row.BarMergin;
+                    if (this.IsNumber(mergin.Left)) this.Report.Item.BarMergin.Left=mergin.Left;
+                    if (this.IsNumber(mergin.Top)) this.Report.Item.BarMergin.Top=mergin.Top;
+                    if (this.IsNumber(mergin.Right)) this.Report.Item.BarMergin.Right=mergin.Right;
+                    if (this.IsNumber(mergin.Bottom)) this.Report.Item.BarMergin.Bottom=mergin.Bottom;
+                }
+
+                if (row.NameFont)
+                {
+                    var font=row.NameFont;
+                    if (font.Name) this.Report.Item.NameFont.Name=font.Name;
+                    if (this.IsNumber(font.Size)) this.Report.Item.NameFont.Size=font.Size;
+                }
+
+                if (row.SymbolFont)
+                {
+                    var font=row.SymbolFont;
+                    if (font.Name) this.Report.Item.SymbolFont.Name=font.Name;
+                    if (this.IsNumber(font.Size)) this.Report.Item.SymbolFont.Size=font.Size;
+                }
+            }
+
+            if (item.FixedItem)
+            {
+                var row=item.FixedItem;
+                if (row.Font)
+                {
+                    var font=row.Font;
+                    if (font.Name) this.Report.FixedItem.Font.Name=font.Name;
+                    if (this.IsNumber(font.Size)) this.Report.FixedItem.Font.Size=font.Size;
+                }
+            }
+
+            if (item.LimitBorder)
+            {
+                var limit=item.LimitBorder;
+                if (limit.Color) this.Report.LimitBorder.Color=limit.Color;
+                if (limit.Mergin)
+                {
+                    var mergin=limit.Mergin;
+                    if (this.IsNumber(mergin.Left)) this.Report.LimitBorder.Mergin.Left=mergin.Left;
+                    if (this.IsNumber(mergin.Top)) this.Report.LimitBorder.Mergin.Top=mergin.Top;
+                    if (this.IsNumber(mergin.Right)) this.Report.LimitBorder.Mergin.Right=mergin.Right;
+                    if (this.IsNumber(mergin.Bottom)) this.Report.LimitBorder.Mergin.Bottom=mergin.Bottom;
+                }
+            }
+
+            if (item.FieldColor)
+            {
+                var filed=item.FieldColor;
+                if (filed.Name) this.Report.FieldColor.Name=filed.Name;
+                if (filed.Symbol) this.Report.FieldColor.Symbol=filed.Symbol;
+                if (filed.Vol) this.Report.FieldColor.Vol=filed.Vol;
+                if (filed.Amount) this.Report.FieldColor.Amount=filed.Amount;
+                if (filed.Index) this.Report.FieldColor.Index=filed.Index;
+                if (filed.BarTitle) this.Report.FieldColor.BarTitle=filed.BarTitle;
+                if (filed.Text) this.Report.FieldColor.Text=filed.Text;
+
+                if (this.IsNonEmptyArray(filed.Bar))
+                {
+                    for(var i=0;i<filed.Bar.length;++i)
+                        this.Report.FieldColor.Bar[i]=filed.Bar[i];
+                }
+            }
+
+            if (item.PageInfo)
+            {
+                var pageinfo=item.PageInfo;
+                if (pageinfo.Font)
+                {
+                    var font=pageinfo.Font;
+                    if (font.Name) this.Report.PageInfo.Font.Name=font.Name;
+                    if (this.IsNumber(font.Size)) this.Report.PageInfo.Font.Size=font.Size;
+                }
+
+                if (pageinfo.TextColor) this.Report.PageInfo.TextColor=pageinfo.TextColor;
+                if (pageinfo.BGColor) this.Report.PageInfo.BGColor=pageinfo.BGColor;
+
+                if (pageinfo.Mergin)
+                {
+                    var mergin=pageinfo.Mergin;
+                    if (this.IsNumber(mergin.Left)) this.Report.PageInfo.Mergin.Left=mergin.Left;
+                    if (this.IsNumber(mergin.Top)) this.Report.PageInfo.Mergin.Top=mergin.Top;
+                    if (this.IsNumber(mergin.Right)) this.Report.PageInfo.Mergin.Right=mergin.Right;
+                    if (this.IsNumber(mergin.Bottom)) this.Report.PageInfo.Mergin.Bottom=mergin.Bottom;
+                }
+            }
         }
     }
 
@@ -511,6 +732,15 @@ function JSChartResource()
         if (isNaN(value)) return false;
 
         return value>0;
+    }
+
+    //是否是非空的数组
+    this.IsNonEmptyArray=function(ary)
+    {
+        if (!ary) return;
+        if (!Array.isArray(ary)) return;
+
+        return ary.length>0;
     }
 }
 
@@ -636,11 +866,40 @@ function JSChartLocalization()
     {
         this.TextResource.set(key, value)
     }
+
+    this.GetLanguageID=function(languageName)
+    {
+        var languageID=null;
+        switch(languageName)
+        {
+            case 'EN':
+                languageID=JSCHART_LANGUAGE_ID.LANGUAGE_ENGLISH_ID;
+                break;
+            case 'CN':
+                languageID=JSCHART_LANGUAGE_ID.LANGUAGE_CHINESE_ID;
+                break;
+            case "TC":
+                languageID=JSCHART_LANGUAGE_ID.LANGUAGE_TRADITIONAL_CHINESE_ID;
+                break;
+            default:
+                break;
+        }
+
+        return languageID;
+    }
 };
 
 var g_JSChartLocalization = new JSChartLocalization();
 
 //导出统一使用JSCommon命名空间名
+export
+{
+    JSChartResource,
+    g_JSChartResource,
+    g_JSChartLocalization,
+    JSCHART_LANGUAGE_ID
+};
+/*
 module.exports =
 {
     JSCommonResource:
@@ -657,3 +916,4 @@ module.exports =
     JSCommonResource_Global_JSChartLocalization: g_JSChartLocalization,
     JSCommonResource_JSCHART_LANGUAGE_ID: JSCHART_LANGUAGE_ID
 };
+*/

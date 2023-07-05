@@ -1,7 +1,7 @@
 <template>
     <div id="app2" >
       <div class="demoPageTop">
-        <span>HQChart测试用例 版本号:1.1.10531</span> 
+        <span>HQChart测试用例 版本号:1.1.12161</span> 
         <a href="https://github.com/jones2000/HQChart" target="_blank">代码地址: https://github.com/jones2000/HQChart</a>
         <div class="changeColorBtns">
           <button type="button" @click="OnChangeStyle('black')">黑色风格</button>
@@ -16,7 +16,7 @@
         <a v-on:click="OnChangeSymbol('000001.sh')">上证指数</a>
         !-->
         <div class='divstockfull'>
-            <StockFull ref='stockfull' DefaultPeriod='日线' :DefaultSymbol=this.Symbol 
+            <StockFull ref='stockfull' DefaultPeriod='分时' :DefaultSymbol=this.Symbol 
                 :KLineOption=this.KLineOption :MinuteOption=this.MinuteOption />
         </div>
     </div>
@@ -31,8 +31,8 @@ const CUSTOM_KLINE_OPTION=
 {
     Windows: //窗口指标
     [
-        {Index:"MA"},
-        {Index:"MACD"},
+        {Index:"MA", Overlay:true, Export:true, OverlayIndexType:{ Position:1, LineSpace:3 }},
+        {Index:"MACD", Overlay:true, OverlayIndexType:{ Position:1, LineSpace:3 }},
     ], 
 
     //TradeIndex: {Index:'交易系统-BIAS'},    //交易系统
@@ -49,7 +49,7 @@ const CUSTOM_MINUTE_OPTION=
 {
     Windows: //窗口指标
     [
-        {Index:"RSI"},
+        {Index:"RSI", Export:true },
     ]
 }
 

@@ -10,10 +10,7 @@
     行情数据结构 及计算方法
 */
 
-import 
-{
-    JSCommonCoordinateData_MARKET_SUFFIX_NAME as MARKET_SUFFIX_NAME
-} from "./umychart.coordinatedata.wechat.js";
+import { MARKET_SUFFIX_NAME } from "./umychart.coordinatedata.wechat.js";
 
 function Guid() 
 {
@@ -30,6 +27,14 @@ function IsPlusNumber(value)
     if (value==null) return false;
     if (isNaN(value)) return false;
     return value>0;
+}
+
+function IsNumber(value)
+{
+    if (value==null) return false;
+    if (isNaN(value)) return false;
+
+    return true;
 }
 
 //历史K线数据
@@ -57,6 +62,8 @@ function HistoryData()
 
     this.BFactor;   //前复权
     this.AFactor;   //后复权
+
+    this.ColorData; //自定义颜色 {Type:0=空心 1=实心, Line:{ Color:'上下线颜色'}, Border:{Color:柱子边框颜色}, BarColor:柱子颜色};
 }
 
 //数据复制
@@ -64,7 +71,7 @@ HistoryData.Copy=function(data)
 {
     var newData=new HistoryData();
     newData.Date=data.Date;
-    if (IsPlusNumber(data.Time)) newData.Time=data.Time;
+    if (IsNumber(data.Time)) newData.Time=data.Time;
     newData.YClose=data.YClose;
     newData.Open=data.Open;
     newData.Close=data.Close;
@@ -86,6 +93,9 @@ HistoryData.Copy=function(data)
     if (IsPlusNumber(data.BFactor)) newData.BFactor = data.BFactor;
     if (IsPlusNumber(data.AFactor)) newData.AFactor = data.AFactor;
 
+    if (data.ColorData) newData.ColorData=data.ColorData;
+    if (data.ExtendData) newData.ExtendData=data.ExtendData;
+
     return newData;
 }
 
@@ -103,15 +113,18 @@ HistoryData.CopyTo = function (dest, src)
     if (IsPlusNumber(src.Time))  dest.Time = src.Time;
     if (IsPlusNumber(src.FlowCapital)) dest.FlowCapital = src.FlowCapital;
 
-     //指数才有的数据
+    //指数才有的数据
     if (IsPlusNumber(src.Stop)) dest.Stop = src.Stop;
     if (IsPlusNumber(src.Up)) dest.Up = src.Up;
     if (IsPlusNumber(src.Down)) dest.Down = src.Down;
     if (IsPlusNumber(src.Unchanged)) dest.Unchanged = src.Unchanged;
 
-     //复权因子
-     if (IsPlusNumber(src.BFactor)) dest.BFactor = src.BFactor;
-     if (IsPlusNumber(src.AFactor)) dest.AFactor = src.AFactor;
+    //复权因子
+    if (IsPlusNumber(src.BFactor)) dest.BFactor = src.BFactor;
+    if (IsPlusNumber(src.AFactor)) dest.AFactor = src.AFactor;
+
+    if (src.ColorData) dest.ColorData=src.ColorData;
+    if (src.ExtendData) dest.ExtendData=src.ExtendData;
 }
 
 //数据复权拷贝
@@ -119,6 +132,8 @@ HistoryData.CopyRight=function(data,seed)
 {
     var newData=new HistoryData();
     newData.Date=data.Date;
+    if (IsNumber(data.Time)) newData.Time=data.Time;
+
     newData.YClose=data.YClose*seed;
     newData.Open=data.Open*seed;
     newData.Close=data.Close*seed;
@@ -130,6 +145,9 @@ HistoryData.CopyRight=function(data,seed)
 
     newData.FlowCapital = data.FlowCapital;
     newData.Position = data.Position;
+    
+    if (data.ColorData) newData.ColorData=data.ColorData;       //K线颜色
+    if (data.ExtendData) newData.ExtendData=data.ExtendData;    //扩张数据
 
     return newData;
 }
@@ -150,6 +168,9 @@ function MinuteData()
     this.Date;
     this.Time;
     this.Position = null;  //持仓量
+    this.YClearing;         //昨结算价
+
+    this.ExtendData;    //扩展数据
 }
 
 //单指标数据
@@ -300,12 +321,14 @@ function ChartData()
         return result;
     }
 
-    this.GetVol=function()
+    this.GetVol=function(unit)
     {
-        var result=new Array();
+        var value=1;
+        if (ChartData.IsNumber(unit)) value=unit;
+        var result=[];
         for(var i in this.Data)
         {
-            result[i]=this.Data[i].Vol;
+            result[i]=this.Data[i].Vol/value;
         }
 
         return result;
@@ -408,6 +431,53 @@ function ChartData()
                 result[i]=value;
             else 
                 result[i]=0;
+        }
+
+        return result;
+    }
+
+    this.GetSettlementPrice=function()  //结算价
+    {
+        var result=[]
+        for(var i=0; i<this.Data.length; ++i)
+        {
+            result[i]=this.Data[i].FClose;
+        }
+
+        return result;
+    }
+
+    this.GetIsEqual=function()
+    {
+        var result=[];
+        for(var i=0; i<this.Data.length; ++i)
+        {
+            var item=this.Data[i];
+            result[i]=(item.Close==item.Open? 1:0);
+        }
+
+        return result;
+    }
+
+    this.GetIsUp=function()
+    {
+        var result=[];
+        for(var i=0; i<this.Data.length; ++i)
+        {
+            var item=this.Data[i];
+            result[i]=(item.Close>item.Open? 1:0);
+        }
+
+        return result;
+    }
+
+    this.GetIsDown=function()
+    {
+        var result=[];
+        for(var i=0; i<this.Data.length; ++i)
+        {
+            var item=this.Data[i];
+            result[i]=(item.Close<item.Open? 1:0);
         }
 
         return result;
@@ -1279,6 +1349,23 @@ function ChartData()
         return result;
     }
 
+    this.GetObject=function()
+    {
+        var result=[];
+        for(var i in this.Data)
+        {
+            if (this.Data[i] && this.Data[i].Value)
+            { 
+                var item=this.Data[i].Value;
+                result[i]=item;
+            }
+            else
+                result[i]=null;
+        }
+
+        return result;
+    }
+
     this.GetPeriodSingleData=function(period)
     {
         var result=new Array();
@@ -1900,6 +1987,7 @@ var JSCHART_EVENT_ID =
     RECV_TRAIN_MOVE_STEP: 4,    //接收K线训练,移动一次K线
     CHART_STATUS: 5,            //每次Draw() 以后会调用
     BARRAGE_PLAY_END: 6,        //单个弹幕播放完成
+    RECV_OVERLAY_INDEX_DATA:7,  //接收叠加指标数据
     RECV_START_AUTOUPDATE: 9,    //开始自动更新
     RECV_STOP_AUTOUPDATE: 10,    //停止自动更新
     ON_TITLE_DRAW: 12,           //标题信息绘制事件
@@ -1914,6 +2002,51 @@ var JSCHART_EVENT_ID =
     ON_PHONE_TOUCH:27,                   //手势点击事件 包含 TouchStart 和 TouchEnd
 
     ON_SPLIT_YCOORDINATE:29,             //分割Y轴及格式化刻度文字
+    ON_SPLIT_XCOORDINATE:31,             //分割X轴及格式化刻度文字
+    
+    ON_DRAW_KLINE_LAST_POINT:35,          //K线图绘制回调事件,返回最后一个点的坐标
+
+    ON_DRAW_COUNTDOWN:41,                 //K线倒计时
+    ON_BIND_DRAWICON:42,                  //绑定DRAWICON回调
+
+    ON_DRAW_DEAL_VOL_COLOR:43,              //成交明细 成交量颜色 (h5)
+    ON_DRAW_DEAL_TEXT:44,                   //成交明细 自定义字段 (h5)
+    ON_FILTER_DEAL_DATA:45,                 //成交明细 数据过滤回调 (h5)
+
+    ON_FILTER_REPORT_DATA:46,               //报价列表 数据过滤回调
+    ON_CLICK_REPORT_ROW:47,                 //点击报价列表
+    ON_REPORT_MARKET_STATUS:48,             //报价列表交易状态
+    ON_DBCLICK_REPORT_ROW:49,               //双击报价列表 (h5)
+    ON_RCLICK_REPORT_ROW:50,                //右键点击列表
+    ON_CLICK_REPORT_HEADER:51,              //单击表头
+    ON_RCLICK_REPORT_HEADER:52,             //右键点击表头
+    ON_REPORT_LOCAL_SORT:53,                //报价列表本地排序
+    ON_DRAW_REPORT_NAME_COLOR:54,           //报价列表股票名称列颜色
+    ON_DRAW_CUSTOM_TEXT:55,                 //报价列表自定义列
+    ON_CLICK_REPORT_TAB:56,                 //报价列表标签点击 (h5)
+    ON_CLICK_REPORT_TABMENU:57,             //报价列表标签菜单点击 (h5)
+    ON_DRAW_REPORT_FIXEDROW_TEXT:58,        //报价列表固定行绘制
+    ON_CLICK_REPORT_FIXEDROW:59,            //点击报价列表点击固定行
+    ON_RCLICK_REPORT_FIXEDROW:60,           //点击报价列表右键点击固定行
+
+    ON_FORMAT_CORSSCURSOR_Y_TEXT:75,    //格式化十字光标Y轴文字
+    ON_FORMAT_INDEX_OUT_TEXT:76,           //格式化指标标题文字
+    ON_FORMAT_CORSSCURSOR_X_TEXT:77,    //格式化十字光标X轴文字
+
+
+    ON_CUSTOM_UNCHANGE_KLINE_COLOR:95,  //定制平盘K线颜色
+}
+
+var JSCHART_DATA_FIELD_ID=
+{
+    MINUTE_MULTI_DAY_EXTENDDATA:21, //多日分时图扩展数据序号
+    MINUTE_DAY_EXTENDDATA:21,
+    MINUTE_BEFOREOPEN_EXTENDDATA:21,
+    MINUTE_AFTERCLOSE_EXTENDDATA:21,
+
+    KLINE_COLOR_DATA:66,            //K线自定义颜色数据
+    KLINE_DAY_EXTENDDATA:25,
+    KLINE_MINUTE_EXTENDDATA:25,
 }
 
 var HQ_DATA_TYPE=
@@ -1922,6 +2055,15 @@ var HQ_DATA_TYPE=
     MINUTE_ID:2,        //当日走势图
     HISTORY_MINUTE_ID:3,//历史分钟走势图
     MULTIDAY_MINUTE_ID:4,//多日走势图
+};
+
+//K线叠加 支持横屏
+var OVERLAY_STATUS_ID=
+{
+    STATUS_NONE_ID:0,           //空闲状态
+    STATUS_REQUESTDATA_ID:1,    //请求数据
+    STATUS_RECVDATA_ID:2,       //接收到数据
+    STATUS_FINISHED_ID:3,       //数据下载完成
 };
 
 function PhoneDBClick()
@@ -1979,6 +2121,47 @@ function PhoneDBClick()
 }
 
 //导出统一使用JSCommon命名空间名
+var JSCommonData=
+{
+    HistoryData: HistoryData,
+    ChartData: ChartData,
+    SingleData: SingleData,
+    MinuteData: MinuteData,
+    Rect: Rect,
+    DataPlus: DataPlus,
+    JSCHART_EVENT_ID:JSCHART_EVENT_ID,
+    PhoneDBClick:PhoneDBClick,
+    HQ_DATA_TYPE:HQ_DATA_TYPE,
+    OVERLAY_STATUS_ID:OVERLAY_STATUS_ID,
+};
+
+export
+{
+    JSCommonData,
+
+    ChartData,
+    HistoryData,
+    SingleData,
+    MinuteData,
+    CUSTOM_DAY_PERIOD_START,
+    CUSTOM_DAY_PERIOD_END,
+    CUSTOM_MINUTE_PERIOD_START,
+    CUSTOM_MINUTE_PERIOD_END,
+    CUSTOM_SECOND_PERIOD_START,
+    CUSTOM_SECOND_PERIOD_END,
+    Rect,
+    DataPlus,
+    Guid,
+    ToFixedPoint,
+    ToFixedRect,
+    JSCHART_EVENT_ID,
+    JSCHART_DATA_FIELD_ID,
+    PhoneDBClick,
+    HQ_DATA_TYPE,
+    OVERLAY_STATUS_ID
+};
+
+/*
 module.exports =
 {
     JSCommonData:
@@ -1992,6 +2175,7 @@ module.exports =
         JSCHART_EVENT_ID:JSCHART_EVENT_ID,
         PhoneDBClick:PhoneDBClick,
         HQ_DATA_TYPE:HQ_DATA_TYPE,
+        OVERLAY_STATUS_ID:OVERLAY_STATUS_ID,
     },
 
     //单个类导出
@@ -2013,4 +2197,6 @@ module.exports =
     JSCommon_JSCHART_EVENT_ID:JSCHART_EVENT_ID,
     JSCommon_PhoneDBClick:PhoneDBClick,
     JSCommon_HQ_DATA_TYPE:HQ_DATA_TYPE,
+    JSCommon_OVERLAY_STATUS_ID:OVERLAY_STATUS_ID,
 };
+*/

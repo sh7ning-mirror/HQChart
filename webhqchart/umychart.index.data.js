@@ -23,8 +23,9 @@
     YSplitScale:  Y固定刻度 [1,8,10]
     YSpecificMaxMin: 固定Y轴最大最小值 { Max: 9, Min: 0, Count: 3 };
     StringFormat: 1=带单位万/亿 2=原始格式
-    Condition: 限制条件 { Symbol:'Index'/'Stock'(只支持指数/股票),Period:[](支持的周期), Include:[](指定支持的股票,代码全部大写包括后缀)}
+    Condition: 限制条件 { Symbol:'Index'/'Stock'(只支持指数/股票),Period:[](支持的周期), Include:[](指定支持的股票,代码全部大写包括后缀, Message:"提示信息")}
     OutName:动态输出变量名字 [{Name:原始变量名, DynamicName:动态名字格式}] 如 {Name:"MA1", DynamicName:"MA{M1}"};
+    SplitType: Y轴分割类型
 */
 
 //周期条件枚举
@@ -77,7 +78,7 @@ function JSIndexScript()
             ['BOLL', this.BOLL],['BOLL副图', this.BOLL2],['BBI', this.BBI],
             ['DKX', this.DKX],['MIKE', this.MIKE],['PBX', this.PBX],
             ['ENE', this.ENE],['MACD', this.MACD],['KDJ', this.KDJ],["MACD2", this.MACD2],
-            ['VOL', this.VOL],['RSI', this.RSI],['BRAR', this.BRAR],
+            ['VOL', this.VOL],["VOL_OVERLAY", this.VOL_OVERLAY], ['RSI', this.RSI],['BRAR', this.BRAR],
             ['WR', this.WR],['BIAS', this.BIAS],['OBV', this.OBV],
             ['DMI', this.DMI],['CR', this.CR],['PSY', this.PSY],
             ['CCI', this.CCI],['DMA', this.DMA],['TRIX', this.TRIX],
@@ -107,6 +108,7 @@ function JSIndexScript()
             ['VOL-TDX',this.VOL_TDX],
             ['EMPTY', this.EMPTY],  //什么都不显示的指标
             ['神奇九转', this.NineTurns],
+            ['EMA', this.EMA3], ['EMA4', this.EMA4], ['EMA5', this.EMA5],['EMA6', this.EMA6],
 
             //通达信特色指标
             ["散户线", this.ShareholderCount],["NXTS", this.NXTS],["FKX", this.FKX],["两融资金", this.Margin4],
@@ -319,6 +321,100 @@ MA8:MA(CLOSE,M8);'
     return data;
 }
 
+JSIndexScript.prototype.EMA3=function()
+{
+    let data=
+    {
+        Name:'EMA', Description:'指数移动平均值', IsMainIndex:true, StringFormat:2,
+        Args:
+        [ 
+            { Name:'M1', Value:5}, { Name:'M2', Value:10 }, { Name:'M3', Value:20}
+        ],
+        OutName:[ {Name:'MA1',DynamicName:"MA{M1}" },  {Name:'MA2',DynamicName:"MA{M2}" },{Name:'MA3',DynamicName:"MA{M3}" } ],
+        Script: //脚本
+'MA1:EMA(CLOSE,M1);\n\
+MA2:EMA(CLOSE,M2);\n\
+MA3:EMA(CLOSE,M3);'
+
+    };
+
+    return data;
+}
+
+
+JSIndexScript.prototype.EMA4=function()
+{
+    let data=
+    {
+        Name:'EMA', Description:'指数移动平均值', IsMainIndex:true, StringFormat:2,
+        Args:
+        [ 
+            { Name:'M1', Value:5}, { Name:'M2', Value:10 }, { Name:'M3', Value:20} , { Name:'M4', Value:60} 
+        ],
+        OutName:[ {Name:'MA1',DynamicName:"MA{M1}" },  {Name:'MA2',DynamicName:"MA{M2}" },{Name:'MA3',DynamicName:"MA{M3}" },{Name:'MA4',DynamicName:"MA{M4}" } ],
+        Script: //脚本
+'MA1:EMA(CLOSE,M1);\n\
+MA2:EMA(CLOSE,M2);\n\
+MA3:EMA(CLOSE,M3);\n\
+MA4:EMA(CLOSE,M4);'
+
+    };
+
+    return data;
+}
+
+
+JSIndexScript.prototype.EMA5=function()
+{
+    let data=
+    {
+        Name:'EMA', Description:'指数移动平均值', IsMainIndex:true, StringFormat:2,
+        Args:
+        [ 
+            { Name:'M1', Value:5}, { Name:'M2', Value:10 }, { Name:'M3', Value:20} , { Name:'M4', Value:60} ,
+            { Name:'M5', Value:0}
+        ],
+        OutName:[ {Name:'MA1',DynamicName:"MA{M1}" },  {Name:'MA2',DynamicName:"MA{M2}" },{Name:'MA3',DynamicName:"MA{M3}" },{Name:'MA4',DynamicName:"MA{M4}" },
+        {Name:'MA5',DynamicName:"MA{M5}" } ],
+        Script: //脚本
+'MA1:EMA(CLOSE,M1);\n\
+MA2:EMA(CLOSE,M2);\n\
+MA3:EMA(CLOSE,M3);\n\
+MA4:EMA(CLOSE,M4);\n\
+MA5:EMA(CLOSE,M5);'
+
+    };
+
+    return data;
+}
+
+
+JSIndexScript.prototype.EMA6=function()
+{
+    let data=
+    {
+        Name:'EMA', Description:'指数移动平均值', IsMainIndex:true, StringFormat:2,
+        Args:
+        [ 
+            { Name:'M1', Value:5}, { Name:'M2', Value:10 }, { Name:'M3', Value:20} , { Name:'M4', Value:60} ,
+            { Name:'M5', Value:0},{ Name:'M6', Value:0}
+        ],
+        OutName:[ {Name:'MA1',DynamicName:"MA{M1}" },  {Name:'MA2',DynamicName:"MA{M2}" },{Name:'MA3',DynamicName:"MA{M3}" },{Name:'MA4',DynamicName:"MA{M4}" },
+        {Name:'MA5',DynamicName:"MA{M5}" } ,{ Name:'MA6',DynamicName:"MA{M6}" } ],
+        Script: //脚本
+'MA1:EMA(CLOSE,M1);\n\
+MA2:EMA(CLOSE,M2);\n\
+MA3:EMA(CLOSE,M3);\n\
+MA4:EMA(CLOSE,M4);\n\
+MA5:EMA(CLOSE,M5);\n\
+MA6:EMA(CLOSE,M6);'
+
+    };
+
+    return data;
+}
+
+
 JSIndexScript.prototype.BOLL=function()
 {
     let data=
@@ -508,6 +604,19 @@ JSIndexScript.prototype.VOL=function()
 'VOL:VOL,VOLSTICK;\n\
 MA1:MA(VOL,M1);\n\
 MA2:MA(VOL,M2);'
+
+    };
+
+    return data;
+}
+
+JSIndexScript.prototype.VOL_OVERLAY=function()
+{
+    let data=
+    {
+        Name:'VOL', Description:'成交量', IsMainIndex:false,FloatPrecision:0,
+        Script: //脚本
+'VOL:VOL,VOLSTICK,UPCOLOR(RGBA(255,0,0,0.3)),DOWNCOLOR(RGBA(0,255,0,0.3));'
 
     };
 
@@ -2028,7 +2137,7 @@ JSIndexScript.prototype.SAR = function ()
         Name: 'SAR', Description: '抛物转向', IsMainIndex: true,
         Args: [{ Name: 'P', Value: 10 },{ Name: 'STEP', Value: 2 },{ Name: 'MAXP', Value: 20 }],
         Script: //脚本
-'S:SAR(P,STEP,MAXP),CIRCLEDOT;'
+'S:SAR(P,STEP,MAXP),UPDOWNDOT;'
 
     };
 

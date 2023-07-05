@@ -49,22 +49,8 @@
             </div>
         </div>
         <div class="detailList" ref="detailList" v-show="IsShowTradeData">
-            <div>
-                <p v-for="(itemTrade,indexT) in TradeData" :key="indexT">
-                    <span>{{itemTrade.Time.Text}}</span>
-                </p>
-            </div>
-            <div>
-                <p v-for="(itemTrade,indexT) in TradeData" :key="indexT" :class="itemTrade.Price.Color">
-                    <span>{{itemTrade.Price.Text}}</span>
-                </p>
-            </div>
-            <div>
-                <p v-for="(itemTrade,indexT) in TradeData" :key="indexT">
-                    <span>{{itemTrade.Vol.Text}}&nbsp;<span :class="itemTrade.BS.Color">{{itemTrade.BS.Text}}</span></span>
-                </p>
-            </div>
-            <a :href="MoreDealLink" target='_blank' class="seeMoreDeal">点击查看更多分时成交</a>
+          <div id="deal" ref="deal"></div>
+          <a :href="MoreDealLink" target='_blank' class="seeMoreDeal">点击查看更多分时成交</a>
         </div>
         <div class="shorttermlist" ref='shorttermlist' v-show="ShortTerm.IsShow">
             <div>
@@ -128,7 +114,8 @@
             </div>
         </div>
         <div class='dealpricelist' ref='dealpricelist' v-show='DealPrice.IsShow' ><!-- 分价表 -->
-            <table class='table'>
+          <div id="priceList" ref="priceList"></div>
+            <!-- <table class='table'>
                 <tbody>
                     <tr v-for='(item,index) in DealPriceData' :key='index+"dealprice"'>
                         <td :class='item.Price.Color'>{{item.Price.Text}}</td>
@@ -140,7 +127,7 @@
                         <td>{{item.Rate}}</td>
                     </tr>
                 </tbody>
-            </table>
+            </table> -->
         </div>
         
     </div>
@@ -149,6 +136,9 @@
 import $ from "jquery";
 import JSCommon from "../umychart.vue/umychart.vue.js";
 import JSCommonStock from "../umychart.vue/umychart.stock.vue.js";
+import '../../jscommon/umychart.resource/css/tools.css'
+
+// JSCommon.MARKET_SUFFIX_NAME.GetMarketStatus = function (symbol)  { return 2; }
 
 //默认数据输出
 class DefaultData {
@@ -385,6 +375,76 @@ class DefaultData {
       }];
       return data;
   }
+
+  static GetDealOption(){ //成交明细option
+    return {
+      Type:'成交明细',   //创建图形类型
+                
+      Symbol:'600000.sh',
+      IsAutoUpdate:true,          //是自动更新数据
+      AutoUpdateFrequency:15000,   //数据更新频率
+
+      Column:
+      [
+          //{Type:JSCommon.DEAL_COLUMN_ID.STRING_TIME_ID }, //自定义时间格式
+          //{Type:JSCommon.DEAL_COLUMN_ID.INDEX_ID },
+          {Type:JSCommon.DEAL_COLUMN_ID.TIME_ID },
+          {Type:JSCommon.DEAL_COLUMN_ID.PRICE_ID },
+          {Type:JSCommon.DEAL_COLUMN_ID.VOL_ID },
+          {Type:JSCommon.DEAL_COLUMN_ID.BS_ID, },
+      ],
+
+      IsSingleTable:true,
+      IsShowHeader:false,
+
+      KeyDown:false,  //禁止键盘
+      Wheel:false,    //禁止滚轴
+      
+      Border: //边框
+      {
+          Left:1,         //左边间距
+          Right:1,       //右边间距
+          Bottom:1,      //底部间距
+          Top:1          //顶部间距
+      }
+    }
+  }
+  static GetPriceListOption(){ //分价表option
+    return {
+      Type:'分价表',   //创建图形类型
+                
+      Symbol:'600000.sh',
+      IsAutoUpdate:true,          //是自动更新数据
+      AutoUpdateFrequency:1000,   //数据更新频率
+
+      Column:
+      [
+          // {Type:JSCommon.DEAL_COLUMN_ID.INDEX_ID },
+          // {Type:JSCommon.DEAL_COLUMN_ID.UPDOWN_ID },
+          // {Type:JSCommon.DEAL_COLUMN_ID.CENTER_BAR_ID , Title:"比例", DataIndex:9 },   //数据所在原始数据索引列
+          {Type:JSCommon.DEAL_COLUMN_ID.PRICE_ID },
+          {Type:JSCommon.DEAL_COLUMN_ID.VOL_ID },
+          {Type:JSCommon.DEAL_COLUMN_ID.MULTI_BAR_ID , Title:"比例", MaxText:"8888", DataIndex:8 },    //数据所在原始数据索引列
+          {Type:JSCommon.DEAL_COLUMN_ID.CUSTOM_TEXT_ID , Title:"占比", MaxText:"88.8%",TextAlign:"right" },                //自定义文字
+        
+      ],   
+      
+      IsSingleTable:true,
+      IsShowHeader:false,
+      IsShowLastPage:false,
+
+      KeyDown:false,  //禁止键盘
+      Wheel:false,    //禁止滚轴
+      
+      Border: //边框
+      {
+          Left:1,         //左边间距
+          Right:1,       //右边间距
+          Bottom:1,      //底部间距
+          Top:1          //顶部间距
+      }
+    }
+  }
 }
 
 function CapticalFlowChartStyle() {}
@@ -408,7 +468,8 @@ export default {
   name: "StockTradeInfo",
   props: [
     "IsShareStock", //是否共享使用一个Stock类,
-    "DefaultSymbol"
+    "DefaultSymbol",
+    'DefaultAPIDomain'
   ],
 
   data() {
@@ -456,16 +517,53 @@ export default {
       DealPrice:
       {
         IsShow:false,
-        Data:null,
-        JSStock: null //数据请求控制器
       },
-      DealPriceData:DefaultData.GetDealPriceData(),
+      DealChart: null,
+      DealChartOption: null,
       MoreDealLink:'',
 
-      isBlackStyle: false
+      isBlackStyle: false,
+
+      
+      HQChartStyle:new Map(),
+
+      PriceListChart: null,
+      PriceListOption: null,
+      ApiPriceListUrl:"https://opensource.zealink.com/API/StockPriceList",
+
+      ApiUrl:"https://opensource.zealink.com/API/Stock", //https://opensource.zealink.com/API/Stock
+      TextFullDataCount: 100,
+      TestUpdateCount: 0,
+      MapPrice: null
     };
 
     return data;
+  },
+
+  created() {
+    if (this.DefaultSymbol) this.Symbol = this.DefaultSymbol; //默认股票
+    if (this.DefaultAPIDomain) 
+    {
+        JSCommon.JSChart.SetDomain(this.DefaultAPIDomain.Domain,this.DefaultAPIDomain.CacheDomain);
+        JSCommon.JSComplier.SetDomain(this.DefaultAPIDomain.Domain,this.DefaultAPIDomain.CacheDomain);
+    }
+
+    //配色风格
+    //白色
+    var resource=JSCommon.JSChart.GetResource();
+    resource.DealList.BorderColor='rgba(0,0,0,0)'; //去掉边框
+    resource.BGColor='rgb(255,255,255)';
+    resource.DealList.FieldColor.Bar[0]='rgb(178,34,34)';
+    resource.DealList.FieldColor.Bar[1]='rgb(34,139,34)';
+    resource.DealList.FieldColor.Bar[2]='rgb(139,139,122)';
+    this.HQChartStyle.set(0, JSON.parse(JSON.stringify(resource)));
+
+    //黑色
+    resource=JSCommon.HQChartStyle.GetStyleConfig(JSCommon.STYLE_TYPE_ID.BLACK_ID);
+    resource.DealList.BorderColor='rgba(0,0,0,0)';  //去掉边框
+    resource.BGColor='#191d1e';
+    this.HQChartStyle.set(1, JSON.parse(JSON.stringify(resource)));
+    
   },
 
   mounted() {
@@ -484,17 +582,335 @@ export default {
       // this.MoreDealLink = './stockdeallastest.demo.page.html?symbol=' + this.Symbol;
     }
 
-    this.MoreDealLink = './stockdeallastest.demo.page.html?symbol=' + this.Symbol;
+    this.MoreDealLink = this.GetDealListUrl();
 
     this.OnSize();
-  },
 
-  created() {
-    if (this.DefaultSymbol) this.Symbol = this.DefaultSymbol; //默认股票
+    //初始化成交明细图形
+    this.CreateDealJSChart()
     
   },
-
+  
   methods: {
+    NetworkFilter(data, callback)
+    {
+        console.log('[PriceListChart::NetworkFilter] data', data);
+        
+        switch(data.Name)
+        {
+            case 'JSDealChartContainer::RequestDealData':           //全量数据下载
+                this.RequestDealData(data, callback);
+                break;
+            case "JSDealChartContainer::RequestDealUpdateData":
+                this.RequestDealUpdateData(data, callback);
+                break;
+        }
+    },
+    recvPriceListUpdateData(recvData, callback){
+      const {deal,symbol} = recvData.stock[0]
+      var hqchartData={ detail:[] , symbol:symbol, UpdateType:1 };
+      
+      for(var i=0;(this.TestUpdateCount+this.TextFullDataCount)<deal.length && i<10;++this.TestUpdateCount, ++i)
+      {
+          var item=deal[this.TestUpdateCount+this.TextFullDataCount];
+
+          var {price, vol, bs} = item
+
+          if (this.MapPrice.has(price))
+          {
+              var priceItem=this.MapPrice.get(price);
+              priceItem.BSVol[bs]+=vol;
+              priceItem.Vol+=vol;
+          }
+          else
+          {
+              var priceItem={Price:price, Vol:vol, BSVol:[0,0,0]};
+              priceItem.BSVol[bs]=vol;
+
+              this.MapPrice.set(price, priceItem);
+          }
+      }
+
+      hqchartData.detail=this.GetPriceList();
+      
+      console.log("[DealChart::RequestDealUpdateData] hqchartData=",hqchartData)
+      callback(hqchartData);
+    },
+    RequestDealUpdateData(data, callback)
+    {
+        data.PreventDefault=true;
+        var symbol=data.Request.Data.symbol;
+        var lastDeal=data.LastItem; //本地最后一条分笔数据, 增量从这条数据开始下载.
+        console.log("[DealChart::RequestDealUpdateData] lastDeal",lastDeal);
+        
+        // const recvData = LocalData.DEAL_UPDATE_600000_SH
+        // this.recvPriceListUpdateData(recvData, callback)
+        $.ajax({
+          url: this.ApiUrl,
+          data: { "field": ["symbol","name", "yclose", "deal"], "symbol": [symbol] },
+          type:"post",
+          dataType: "json",
+          async:true,
+          success: (recvdata)=>
+          {
+              this.recvPriceListUpdateData(recvdata,callback);
+          },
+          error:(request)=>
+          {
+              //self.RecvError(request,RECV_DATA_TYPE.BASE_DATA);
+          }
+        });
+
+        
+    },
+    RecvDealData(recvdata,callback){
+      const {name,symbol,yclose,deal} = recvdata.stock[0]
+      // console.log('RecvDealData',name,symbol,yclose,deal);
+      var hqchartData={ detail:[], symbol:symbol, name:symbol, yclose: yclose};
+      var mapPrice=new Map();
+      for(var i=0;i<deal.length && i<this.TextFullDataCount;++i)
+      {
+          var item=deal[i];
+
+          var {price, vol, bs} = item
+
+          if (mapPrice.has(price))
+          {
+              var priceItem=mapPrice.get(price);
+              priceItem.BSVol[bs]+=vol;
+              priceItem.Vol+=vol;
+          }
+          else
+          {
+              var priceItem={Price:price, Vol:vol, BSVol:[0,0,0]};
+              priceItem.BSVol[bs]=vol;
+
+              mapPrice.set(price, priceItem);
+          }
+      }
+
+      this.MapPrice=mapPrice;
+
+      hqchartData.detail=this.GetPriceList();
+
+      console.log("[PriceListChart::RequestDealData] hqchartData=",hqchartData)
+      callback(hqchartData);
+    },
+    GetPriceList()
+    {
+        var totalVol=this.GetTotalVol();
+        var aryPrice=[];
+        for(var item of this.MapPrice)
+        {
+          // console.log('item of this.MapPrice', item);
+            var priceItem=item[1];
+            //0=时间 1=价格 2=成交量 3=成交金额 4=BS 5=字符串时间 6=ID
+            var newItem=[ null, priceItem.Price, priceItem.Vol, null, null ];
+            newItem[8]={ Value:[0,0,0],Color: [2,0,1] };
+            if (totalVol>0)
+            {
+                newItem[8].Value[0]=priceItem.BSVol[0]/totalVol;
+                newItem[8].Value[1]=priceItem.BSVol[1]/totalVol;
+                newItem[8].Value[2]=priceItem.BSVol[2]/totalVol;
+
+                newItem[8].Rate= priceItem.Vol/totalVol;    //占比
+            }
+
+            newItem[9]={ Value:[0,0] };
+            if (totalVol>0)
+            {
+                newItem[9].Value[0]=priceItem.BSVol[1]/totalVol;
+                newItem[9].Value[1]=priceItem.BSVol[2]/totalVol;
+            }
+
+            aryPrice.push(newItem);
+        }
+
+        return aryPrice;
+    },
+    GetTotalVol()
+    {
+        var totalVol=0;
+        for(var item of this.MapPrice)
+        {
+            totalVol+=item[1].Vol;
+        }
+
+        return totalVol;
+    },
+    RequestDealData(data, callback){
+      var symbol=data.Request.Data.symbol;
+      data.PreventDefault=true;
+
+      // const recvdata = LocalData.DEAL_600000_SH
+      // this.RecvDealData(recvdata,callback);
+      $.ajax({
+        url: this.ApiUrl,
+        data: { "field": ["symbol","name", "yclose", "deal"], "symbol": [symbol] },
+        type:"post",
+        dataType: "json",
+        async:true,
+        success: (recvdata)=>
+        {
+            this.RecvDealData(recvdata,callback);
+        },
+        error:(request)=>
+        {
+            //self.RecvError(request,RECV_DATA_TYPE.BASE_DATA);
+        }
+      });
+      
+    },
+
+    //创建成交明细图
+    CreateDealJSChart()
+    {
+      if(this.DealChart) return;
+
+      const divDeal = this.$refs.deal
+      let chart = JSCommon.JSDealChart.Init(divDeal);   //把成交明细图绑定到一个Div上
+      this.DealChartOption = DefaultData.GetDealOption()
+      if(this.Symbol)
+      {
+        this.DealChartOption.Symbol = this.Symbol
+      }
+
+      if(this.isBlackStyle)
+      {
+        //黑色风格
+        const resource = this.HQChartStyle.get(1)
+        JSCommon.JSChart.SetStyle(resource);
+        divDeal.style.backgroundColor = resource.BGColor; //设置最外面的div背景
+      }
+
+      chart.SetOption(this.DealChartOption);  //设置配置
+      this.DealChart = chart
+     
+    },
+
+    //创建分价表
+    CreatePriceListChart()
+    {
+      if(this.PriceListChart) return;
+
+      const divDeal = this.$refs.priceList
+      let chart = JSCommon.JSDealChart.Init(divDeal);   //把成交明细图绑定到一个Div上
+      this.PriceListOption = DefaultData.GetPriceListOption()
+      this.PriceListOption.NetworkFilter = (data, callback) => { this.PriceListNetworkFilter(data, callback)}
+      this.PriceListOption.EventCallback= 
+      [ 
+          // {   //根据大小单显示成交量颜色
+          //     event:JSCommon.JSCHART_EVENT_ID.ON_DRAW_DEAL_VOL_COLOR, 
+          //     callback:(event, data, obj)=>{ this.GetVolColor(event, data, obj); }  
+          // },
+          {   //自定义内容
+              event:JSCommon.JSCHART_EVENT_ID.ON_DRAW_DEAL_TEXT, 
+              callback:(event, data, obj)=>{ this.GetCustomText(event, data, obj); }  
+          }
+      ];
+      if(this.Symbol)
+      {
+        this.PriceListOption.Symbol = this.Symbol
+      }
+
+      if(this.isBlackStyle)
+      {
+        //黑色风格
+        var resource=this.HQChartStyle.get(1);
+        JSCommon.JSChart.SetStyle(resource);
+        divDeal.style.backgroundColor = resource.BGColor; //设置最外面的div背景
+      }
+
+      chart.SetOption(this.PriceListOption);  //设置配置
+      this.PriceListChart = chart
+     
+    },
+
+    //分价表数据
+    PriceListNetworkFilter(data, callback)  
+    {
+        console.log('[PriceListChart::PriceListNetworkFilter] data', data);
+        switch(data.Name)
+        {
+            case 'JSDealChartContainer::RequestDealData':           //全量数据下载
+                this.RequestPriceListData(data, callback);
+                break;
+            case "JSDealChartContainer::RequestDealUpdateData":
+                this.RequestPriceListData(data, callback);
+                break;
+        }
+    },
+
+    RequestPriceListData(data, callback)
+    {
+        data.PreventDefault=true;
+        var symbol=data.Request.Data.symbol;
+        console.log("[DealChart::RequestPriceListData] symbol",symbol);
+        var url= this.ApiPriceListUrl;
+        
+        $.ajax({
+            url: url,
+            data: { 'symbol':[symbol]},
+            type:"post",
+            dataType: 'json',
+            async:true,
+            success: (recvdata)=>
+            {
+                this.RecvPriceListData(recvdata, callback);
+            },
+            fail:  (request) =>
+            {
+                this.RecvError(request, RECV_DATA_TYPE.DEAL_PRICE_LIST_DATA);
+            }
+        });
+    },
+
+    RecvPriceListData(recvdata, callback)
+    {
+        var stock=recvdata.statistics[0];
+        var hqchartData={  detail:[], symbol:stock.symbol, name:stock.name, yclose: stock.yclose , UpdateType:1 };
+        var totalVol=stock.vol;
+        for(var i in stock.list)
+        {
+            var item=stock.list[i];
+            var vol=item[1];
+            var newItem=[ null, item[0], vol, null, null ];
+            newItem[8]={ Value:[0,0,0],Color: [0,1,2] };
+            if (totalVol>0)
+            {
+              newItem[8].Value[0]=item[2]/vol;
+              newItem[8].Value[1]=item[3]/vol;
+              newItem[8].Value[2]=item[4]/vol;
+
+              newItem[8].Rate= item[1]/totalVol;    //占比
+            }
+
+            hqchartData.detail.push(newItem);
+        }
+
+        hqchartData.detail.sort(function(left, right) { return right[1]-left[1] });
+
+        callback(hqchartData);
+    },
+
+    GetCustomText(event, data, obj) 
+    {
+        var itemData=data.Data.Source[8];
+        if (!itemData) return;
+
+        var value=itemData.Rate*100;
+        var text=value.toFixed(1)+"%";
+
+        data.Out.Text=text;
+        //data.Out.TextAlign='center';
+    },
+
+    GetDealListUrl()
+    {
+        var url=`./stockdeallastest.demo.page.html?symbol=${this.Symbol}&style=${this.isBlackStyle?"black":"white"}`;
+        return url;
+    },
+
     ChangeCapitalFlowDay(index) {
       this.CapitalFlowDayIndex = index;
       this.CurrentDayCapitaData = this.CapitalFlow.Data[index];
@@ -560,24 +976,63 @@ export default {
       this.JSStock = jsStock;
     },
 
-    ChangeStyle(styleName){
+    ChangeStyle(styleName)
+    {
       this.isBlackStyle = 'black' === styleName;
+      this.MoreDealLink = this.GetDealListUrl();
+
+      var resource=this.HQChartStyle.get(this.isBlackStyle?1:0);
+      // console.log('resourceresourceresource:', resource.DealList.FieldColor.Text);
+      JSCommon.JSChart.SetStyle(resource);
+      var divDeal = this.$refs.deal;
+      if(divDeal){
+        divDeal.style.backgroundColor=resource.BGColor; //设置最外面的div背景
+        if (this.DealChart) this.DealChart.ReloadResource({Redraw:true});   //动态刷新配色
+      }
+      var priceList = this.$refs.priceList;
+      if(priceList){
+        priceList.style.backgroundColor=resource.BGColor; //设置最外面的div背景
+        if (this.PriceListChart) this.PriceListChart.ReloadResource({Redraw:true});   //动态刷新配色
+      }
+      
     },
 
     //窗口变化UI自适应调整
     OnSize() {
+      this.$nextTick(() => {
         var tradeinfo = this.$refs.tradeinfo;
         var bookWrap = this.$refs.bookWrap;
         var sellFive = this.$refs.sellFive;
         var buyFive = this.$refs.buyFive;
         var dealpricelist = this.$refs.dealpricelist
         var detailList = this.$refs.detailList;
+        var deal = this.$refs.deal;
+        var priceList = this.$refs.priceList;
         var height = tradeinfo.clientHeight;
+        var width = tradeinfo.clientWidth;
 
         var dealpricelistHeight = height - bookWrap.offsetHeight - sellFive.offsetHeight - buyFive.offsetHeight;
         dealpricelist.style.height = dealpricelistHeight + 'px';
-        detailList.style.height = (height - 67 - 24* 10 - 3) + 'px';
-        
+        var detailListHeight = height - 67 - 24 * 10 - 3
+        detailList.style.height = detailListHeight + 'px';
+
+        var seeMoreDealHeight = 25
+        if(deal){
+          deal.style.height = (detailListHeight - seeMoreDealHeight) + 'px';
+          deal.style.width = width + 'px';
+        }
+        if(this.DealChart){
+          this.DealChart.OnSize()
+        }
+
+        if(priceList){
+          priceList.style.height = detailListHeight + 'px';
+          priceList.style.width = width + 'px';
+        }
+        if(this.PriceListChart){
+          this.PriceListChart.OnSize()
+        }
+      })
     },
 
     RequestData: function() {
@@ -591,6 +1046,8 @@ export default {
         let read = jsStock.GetStockRead(this.ID[2], this.UpdateBookRate); //获取一个读取数据类,并绑定id和更新数据方法
         var bookRate = { Value: read.Get(this.Symbol, JSCommonStock.STOCK_FIELD_NAME.BOOK_RATE) }; //委比
         var bookDiffer = { Value: read.Get(this.Symbol, JSCommonStock.STOCK_FIELD_NAME.BOOK_DIFFER) }; //委差
+
+        console.log('bookRate,bookDiffer:',bookRate,bookDiffer);
 
         if ( id != this.ID[2] || dataType != JSCommonStock.RECV_DATA_TYPE.DERIVATIVE_DATA ) return;
 
@@ -625,7 +1082,7 @@ export default {
         return;
 
       let data = DefaultData.GetTradeData();
-      console.log(data)
+      // console.log(data)
       for (let i = 0; i < aryDeal.length && i < data.length; i++) {
         var item = aryDeal[i];
         var tradeItem = data[i];
@@ -859,14 +1316,12 @@ export default {
       else this.InitalCapitalFlow();
       if (!this.IsShareStock) this.JSStock.RequestData();
 
-      this.MoreDealLink = './stockdeallastest.demo.page.html?symbol=' + this.Symbol;
+      this.MoreDealLink = this.GetDealListUrl();
 
       //分价表是显示的状态,切换股票更新
-      if (this.DealPrice.JSStock && this.DealPrice.IsShow) 
-      {
-        this.DealPrice.JSStock.Symbol=this.Symbol;
-        this.DealPrice.JSStock.RequestData();
-      }
+      if (this.DealChart) this.DealChart.ChangeSymbol(this.Symbol);
+      if (this.PriceListChart) this.PriceListChart.ChangeSymbol(this.Symbol);
+
     },
 
     //初始化
@@ -994,19 +1449,22 @@ export default {
       if (isShow)
       {
         this.DealPrice.IsShow=true;
-        if (!this.DealPrice.JSStock) this.DealPrice.JSStock = JSCommonStock.JSStock.GetDealPriceListData();
-        var dealPrice = this.DealPrice.JSStock;
-        dealPrice.Symbol=this.Symbol;
-        dealPrice.UpdateUICallback = this.UpdateDealPrice;
-        dealPrice.IsAutoUpdate = true;
-        dealPrice.RequestData();
+        this.OnSize();
+        if (this.PriceListChart) this.PriceListChart.ChangeSymbol(this.Symbol);
+        else this.CreatePriceListChart()
+        // if (!this.DealPrice.JSStock) this.DealPrice.JSStock = JSCommonStock.JSStock.GetDealPriceListData();
+        // var dealPrice = this.DealPrice.JSStock;
+        // dealPrice.Symbol=this.Symbol;
+        // dealPrice.UpdateUICallback = this.UpdateDealPrice;
+        // dealPrice.IsAutoUpdate = true;
+        // dealPrice.RequestData();
       }
       else
       {
         this.DealPrice.IsShow=false;
-        if (!this.DealPrice.JSStock) return;
-        this.DealPrice.JSStock.IsAutoUpdate = false;
-        this.DealPrice.JSStock.Stop();
+        // if (!this.DealPrice.JSStock) return;
+        // this.DealPrice.JSStock.IsAutoUpdate = false;
+        // this.DealPrice.JSStock.Stop();
       }
     },
 
@@ -1121,6 +1579,12 @@ ul {
   height: 100%;
   position: relative;
 
+  .firstLine,
+  .sellFive,
+  .buyFive{
+    box-sizing: border-box;
+  }
+
   .firstLine {
     width: 100%;
     border-bottom: @border;
@@ -1128,7 +1592,6 @@ ul {
     display: flex;
     flex-direction: row;
     flex-wrap: wrap;
-    box-sizing: border-box;
 
     > p {
       flex-grow: 1;
@@ -1138,7 +1601,6 @@ ul {
 
   .buyFive,
   .sellFive,
-  .detailList,
   .shorttermlist {
     border-bottom: @border;
     padding: 0 10px;
@@ -1154,6 +1616,7 @@ ul {
       height: 100%;
 
       p {
+        height: 24px;
         line-height: 24px;
       }
     }
@@ -1175,16 +1638,26 @@ ul {
       position: relative;
       width: 100%;
       overflow-y: hidden;
+
+      #deal{
+        position: relative;
+      }
+
       .seeMoreDeal{
         text-decoration: none;
         color: #317ef3;
         opacity: 0.7;
-        position: absolute;
-        right: 10px;
-        bottom: 5px;
+        width: 100%;
+        // position: absolute;
+        // right: 10px;
+        // bottom: 5px;
         display: inline-block;
-        padding: 2px 3px;
+        padding: 0 10px 0;
+        text-align: right;
+        height: 25px;
+        line-height: 25px;
         background-color: #fff;
+        box-sizing: border-box;
       }
       .seeMoreDeal:hover{
         opacity: 1;
@@ -1319,42 +1792,43 @@ ul {
     }
   }
   .dealpricelist{
-      overflow-y: auto;
-    .table{
-        border-collapse: collapse;
-        border-spacing: 0;
-        border: none;
-        tr>td{
-            width: 25%;
-            line-height: 22px;
-            box-sizing: border-box;
-        }
-        tr>td:nth-of-type(2),tr>td:last-child{
-            text-align: right;
-        }
-        tr>td:nth-of-type(2){
-            padding-right: 5px;
-        }
-        td>span{
-            vertical-align: middle;
-            display:inline-block;
-            height: 14px;
-            .buy,.sell,.none{
-                display: inline-block;
-                height: 14px;
-            }
-            .buy{
-                background-color: red;
-            }
-            .sell{
-                background-color: green;
-            }
-            .none{
-                background-color: #ccc;
-            }
-        }
+    box-sizing: border-box;
+      // overflow-y: auto;
+    // .table{
+    //     border-collapse: collapse;
+    //     border-spacing: 0;
+    //     border: none;
+    //     tr>td{
+    //         width: 25%;
+    //         line-height: 22px;
+    //         box-sizing: border-box;
+    //     }
+    //     tr>td:nth-of-type(2),tr>td:last-child{
+    //         text-align: right;
+    //     }
+    //     tr>td:nth-of-type(2){
+    //         padding-right: 5px;
+    //     }
+    //     td>span{
+    //         vertical-align: middle;
+    //         display:inline-block;
+    //         height: 14px;
+    //         .buy,.sell,.none{
+    //             display: inline-block;
+    //             height: 14px;
+    //         }
+    //         .buy{
+    //             background-color: red;
+    //         }
+    //         .sell{
+    //             background-color: green;
+    //         }
+    //         .none{
+    //             background-color: #ccc;
+    //         }
+    //     }
 
-    }  
+    // }  
   }
   
 }
@@ -1374,7 +1848,6 @@ ul {
     .firstLine>p>span,
     .sellFive>div>p>span,
     .buyFive>div>p>span,
-    .detailList>div>p>span,
     .dealpricelist table td
     {
       color: #9ca7b3;
@@ -1387,10 +1860,6 @@ ul {
     .sellFive>div:nth-of-type(3)>p>span,
     .buyFive>div:nth-of-type(3)>p>span{
       color: #06e2d6;
-    }
-
-    .detailList>div:nth-of-type(3)>p>span{
-      color: #dde2e7;
     }
 
     .capitalList {
