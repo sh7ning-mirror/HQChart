@@ -1118,7 +1118,7 @@ function Node(ErrorHandler)
 
                 const VAR_PERIOD_NAME=
                 [
-                    "MIN1","MIN5","MIN15","MIN30","MIN60","DAY","WEEK","MONTH","SEASON","YEAR","HALFYEAR","WEEK2",
+                    "MIN1","MIN5","MIN15","MIN30","MIN60","MIN120","MIN240","DAY","WEEK","MONTH","SEASON","YEAR","HALFYEAR","WEEK2",
                     "MULTIDAY","DAY2","DAY3","DAY4","DAY5","DAY6","DAY7","DAY8","DAY9","DAY10",
                     "DAY11","DAY12","DAY13","DAY14","DAY15"
                 ];
@@ -14927,6 +14927,7 @@ function JSSymbolData(ast,option,jsExecute)
             //Condition:this.Condition,
             IsBeforeData:this.IsBeforeData,
             NetworkFilter:this.NetworkFilter,
+            IsApiPeriod:this.IsApiPeriod,
             KLineRange:dateTimeRange    //K线数据范围
         };
 
@@ -18134,6 +18135,7 @@ function JSExplainer(ast,option)
             ["NAMEINCLUD", { Name:"NAMEINCLUD", Param:{ Count:1 }, ToString:function(args) { return `查找品种名称中包含${args[0]}`; } } ],
             ["CODELIKE", { Name:"CODELIKE", Param:{ Count:1 }, ToString:function(args) { return `查找品种名称中包含${args[0]}`; } } ],
             ["INBLOCK", { Name:"AVEDEV", Param:{ Count:1 }, ToString:function(args) { return `属于${args[0]}板块`; } } ],
+            ["STKINDI",{ Name:"STKINDI", Param:{ Dynamic:true }, ToString:function(args) { return "指标引用"; } }],
             
 
             [
@@ -18158,7 +18160,10 @@ function JSExplainer(ast,option)
                         return `${args[1]}日内${args[0]}新低距今天数`; 
                     } 
                 } 
-            ]
+            ],
+
+           
+            
         ]
     );
 
@@ -18167,8 +18172,17 @@ function JSExplainer(ast,option)
         if (this.FUNCTION_INFO_LIST.has(funcName))
         {
             var item=this.FUNCTION_INFO_LIST.get(funcName);
-            if (item.Param.Count!=args.length)
+
+            if (item.Param.Dynamic===true)  //动态参数
+            {
+
+            }
+            else
+            {
+                if (item.Param.Count!=args.length)
                 this.ThrowUnexpectedNode(node,`函数${funcName}参数个数不正确. 需要${item.Param.Count}个参数`);
+            }
+            
             return item.ToString(args);
         }
 
@@ -18429,6 +18443,37 @@ function JSExplainer(ast,option)
 
         JSConsole.Complier.Log('[JSExplainer::VisitAssignmentExpression]' , varName, ' = ',value);
         this.VarTable.set(varName,value);
+    }
+
+    this.ReadMemberVariable=function(node)
+    {
+        var obj=node.Object;
+        var member=node.Property;
+
+        let maiObj;
+        if (obj.Type==Syntax.BinaryExpression || obj.Type==Syntax.LogicalExpression ) 
+            maiObj=this.VisitBinaryExpression(obj);
+        else if (obj.Type==Syntax.CallExpression)
+            maiObj=this.VisitCallExpression(obj);
+        else
+        {
+            if (member.Name.indexOf('#')>0)
+            {
+                var aryValue=member.Name.split("#");
+                var value=`${obj.Name}的${aryValue[0]}[周期${aryValue[1]}]`;
+            }
+            else
+            {
+                var value=`${obj.Name}的${member.Name}`;
+            }
+            return value;
+        }
+
+        if (!maiObj) return null;
+        var value=maiObj[member.Name];
+        if (value) return value;
+
+        return null;
     }
 
     //逻辑运算
@@ -18894,6 +18939,9 @@ function ScriptIndex(name,script,args,option)
     //调试信息
     this.Debug; // { Callback:, Count: }
 
+    this.IsSync=false;      //是否是同步计算 (无数据请求)
+    this.IsShow=true;       //是否显示图形
+
     if (option)
     {
         if (option.FloatPrecision>=0) this.FloatPrecision=option.FloatPrecision;
@@ -18908,6 +18956,7 @@ function ScriptIndex(name,script,args,option)
         if (option.IsShortTitle) this.IsShortTitle=option.IsShortTitle;
         if (option.OutName) this.OutName=option.OutName;
         if (IFrameSplitOperator.IsNumber(option.YSplitType)) this.YSplitType=option.YSplitType;
+        if (IFrameSplitOperator.IsBool(option.IsSync)) this.IsSync=option.IsSync;
 
         if (option.Debug) 
         {
@@ -19158,7 +19207,9 @@ function ScriptIndex(name,script,args,option)
 
         param.HQChart.UpdataDataoffset();           //更新数据偏移
         param.HQChart.UpdateFrameMaxMin();          //调整坐标最大 最小值
-        param.HQChart.Draw();
+
+        if (param.Self.IsSync===false)    //异步需要马上刷新，同步主图数据更新的时候会刷新的
+            param.HQChart.Draw();
 
         if (hqChart.GetIndexEvent)
         {
@@ -19178,8 +19229,19 @@ function ScriptIndex(name,script,args,option)
     {
         if (this.Name) chart.IndexName=this.Name;
         else if (this.ID) chart.IndexName==this.ID;
+
+        chart.Script=this;  //指标内容绑定上去
     }
 
+    //自定义图形配色
+    this.ReloadChartResource=function(hqChart, windowIndex, chart)
+    {
+        var event=hqChart.GetEventCallback(JSCHART_EVENT_ID.ON_RELOAD_INDEX_CHART_RESOURCE);  //指标计算完成回调
+        if (!event || !event.Callback) return;
+        
+        var sendData={ Chart:chart, IndexName:this.Name,IndexID:this.ID,  HQChart:hqChart, WindowIndex:windowIndex };
+        event.Callback(event,sendData,this);
+    }
 
     this.CreateLine=function(hqChart,windowIndex,varItem, id, lineType)
     {
@@ -19212,6 +19274,9 @@ function ScriptIndex(name,script,args,option)
         
         let titleIndex=windowIndex+1;
         line.Data.Data=varItem.Data;
+
+        this.ReloadChartResource(hqChart,windowIndex,line);
+
         if (varItem.IsShowTitle===false)    //NOTEXT 不绘制标题
         {
 
@@ -19512,6 +19577,8 @@ function ScriptIndex(name,script,args,option)
         if (varItem.UpColor) chartMACD.UpColor=varItem.UpColor;
         if (varItem.DownColor) chartMACD.DownColor=varItem.DownColor;
 
+        this.ReloadChartResource(hqChart,windowIndex,chartMACD);
+
         hqChart.TitlePaint[titleIndex].Data[id]=new DynamicTitleData(chartMACD.Data,varItem.Name,clrTitle);
 
         this.SetChartIndexName(chartMACD);
@@ -19567,6 +19634,8 @@ function ScriptIndex(name,script,args,option)
 
         let titleIndex=windowIndex+1;
         chart.Data.Data=varItem.Data;
+        this.ReloadChartResource(hqChart,windowIndex,chart);
+
         hqChart.TitlePaint[titleIndex].Data[id]=new DynamicTitleData(chart.Data,varItem.Name,chart.Color);
 
         this.SetChartIndexName(chart);
@@ -19642,6 +19711,8 @@ function ScriptIndex(name,script,args,option)
         let titleIndex=windowIndex+1;
         chart.Data.Data=varItem.Data;
         chart.HistoryData=hisData;
+        this.ReloadChartResource(hqChart,windowIndex,chart);
+
         hqChart.TitlePaint[titleIndex].Data[id]=new DynamicTitleData(chart.Data,varItem.Name,chart.Color);
 
         this.SetChartIndexName(chart);
@@ -20726,6 +20797,7 @@ function ScriptIndex(name,script,args,option)
         hqChart.TitlePaint[titleIndex].Title=this.Name;
         hqChart.TitlePaint[titleIndex].Identify=this.Guid;    //指标ID
         hqChart.TitlePaint[titleIndex].ArgumentsText=null;
+        hqChart.TitlePaint[titleIndex].Script=this;
 
         if (!this.IsShortTitle)
         {
@@ -20867,7 +20939,7 @@ function OverlayScriptIndex(name,script,args,option)
         if (IFrameSplitOperator.IsNumber(this.YSplitType)) this.OverlayIndex.Frame.Frame.YSplitOperator.SplitType=this.YSplitType;
         
         //指标名字
-        var titleInfo={ Data:[], Title:this.Name, Frame:this.OverlayIndex.Frame.Frame };
+        var titleInfo={ Data:[], Title:this.Name, Frame:this.OverlayIndex.Frame.Frame, Script:this };
         let indexParam='';
         for(var i in this.Arguments)
         {
@@ -21064,6 +21136,20 @@ function OverlayScriptIndex(name,script,args,option)
         }
     }
 
+    //自定义图形配色
+    this.ReloadChartResource=function(hqChart, windowIndex, chart)
+    {
+        var event=hqChart.GetEventCallback(JSCHART_EVENT_ID.ON_RELOAD_OVERLAY_INDEX_CHART_RESOURCE);  //指标计算完成回调
+        if (!event || !event.Callback) return;
+        
+        var overlayIndex=this.OverlayIndex;
+        var frame=overlayIndex.Frame;
+        var script=frame.Script;
+
+        var sendData={ Chart:chart, IndexName:script.Name,IndexID:script.ID, HQChart:hqChart, WindowIndex:windowIndex, Guid:overlayIndex.Identify };
+        event.Callback(event,sendData,this);
+    }
+
     //////////////////////////////////////////////////////////////////////////////////////
     //  图形创建
     /////////////////////////////////////////////////////////////////////////////////////
@@ -21096,9 +21182,10 @@ function OverlayScriptIndex(name,script,args,option)
         }
 
         if (varItem.IsShow==false) chart.IsShow=false;
-        
-        let titleIndex=windowIndex+1;
         chart.Data.Data=varItem.Data;
+        this.ReloadChartResource(hqChart, windowIndex, chart);
+
+        let titleIndex=windowIndex+1;
         var titlePaint=hqChart.TitlePaint[titleIndex];
         var titleData=new DynamicTitleData(chart.Data,varItem.Name,chart.Color);
         titleData.ChartClassName=chart.ClassName;
@@ -21237,6 +21324,8 @@ function OverlayScriptIndex(name,script,args,option)
         if (varItem.UpColor) chart.UpColor=varItem.UpColor;
         if (varItem.DownColor) chart.DownColor=varItem.DownColor;
 
+        this.ReloadChartResource(hqChart, windowIndex, chart);
+
         titlePaint.OverlayIndex.get(overlayIndex.Identify).Data[id]=new DynamicTitleData(chart.Data,varItem.Name,clrTitle);
 
         frame.ChartPaint.push(chart);
@@ -21298,6 +21387,8 @@ function OverlayScriptIndex(name,script,args,option)
 
         let titleIndex=windowIndex+1;
         chart.Data.Data=varItem.Data;
+        this.ReloadChartResource(hqChart, windowIndex, chart);
+
         var titlePaint=hqChart.TitlePaint[titleIndex];
         titlePaint.OverlayIndex.get(overlayIndex.Identify).Data[id]=new DynamicTitleData(chart.Data,varItem.Name,chart.Color);
 
@@ -21378,6 +21469,8 @@ function OverlayScriptIndex(name,script,args,option)
         let titleIndex=windowIndex+1;
         chart.Data.Data=varItem.Data;
         chart.HistoryData=hisData;
+        this.ReloadChartResource(hqChart, windowIndex, chart);
+        
         var titlePaint=hqChart.TitlePaint[titleIndex];
         titlePaint.OverlayIndex.get(overlayIndex.Identify).Data[id]=new DynamicTitleData(chart.Data,varItem.Name,chart.Color);
 
@@ -21927,6 +22020,15 @@ function APIScriptIndex(name,script,args,option, isOverlay)
         dest.IsOverlayIndex=this.IsOverlayIndex;
     }
 
+    //接收到订阅指标数据
+    this.RecvSubscribeData=function(data, hqChart, windowIndex, hisData)
+    {
+        if (this.Version==2)
+            this.RecvAPIData2(data,hqChart,windowIndex,hisData);
+        else 
+            this.RecvAPIData(data,hqChart,windowIndex,hisData);
+    }
+
     this.ExecuteScript=function(hqChart,windowIndex,hisData)
     {
         JSConsole.Complier.Log('[APIScriptIndex::ExecuteScript] name, Arguments ', this.Name,this.Arguments );
@@ -22473,7 +22575,15 @@ function APIScriptIndex(name,script,args,option, isOverlay)
 
         hqChart.UpdataDataoffset();           //更新数据偏移
         hqChart.UpdateFrameMaxMin();          //调整坐标最大 最小值
-        hqChart.Draw();
+
+        if (data.Redraw===false)    //是否重绘
+        {
+
+        }
+        else
+        {
+            hqChart.Draw();
+        }
 
         if (hqChart.GetIndexEvent)
         {
